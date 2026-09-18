@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Simulador didáctico de confinamiento pasivo de señales de radiofrecuencia."
+    />
+    <title>RF Shield Planner</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Simulador de ingeniería</p>
+          <h1>RF Shield Planner</h1>
+        </div>
+        <div class="connection" id="connectionStatus">
+          <span class="status-dot"></span>
+          <span>Comprobando API</span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="panel settings-panel">
+          <section>
+            <h2>Escenario RF</h2>
+
+            <label for="technology">Tecnología</label>
+            <select id="technology">
+              <option value="850">2G · 850 MHz</option>
+              <option value="1900" selected>3G · 1900 MHz</option>
+              <option value="2100">4G · 2100 MHz</option>
+              <option value="3500">5G Sub-6 · 3.5 GHz</option>
+              <option value="28000">5G mmWave · 28 GHz</option>
+            </select>
+
+            <label for="transmitPower">Potencia transmitida <output id="powerOutput">43 dBm</output></label>
+            <input id="transmitPower" type="range" min="20" max="60" value="43" />
+
+            <label for="towerDistance">Distancia a la antena <output id="distanceOutput">1.0 km</output></label>
+            <input id="towerDistance" type="range" min="100" max="5000" step="100" value="1000" />
+
+            <label for="threshold">Umbral de comunicación <output id="thresholdOutput">−95 dBm</output></label>
+            <input id="threshold" type="range" min="-115" max="-75" value="-95" />
+          </section>
+
+          <section>
+            <h2>Elemento nuevo</h2>
+
+            <label for="material">Material del muro</label>
+            <select id="material">
+              <option value="reinforced_concrete">Concreto reforzado</option>
+              <option value="brick">Ladrillo</option>
+              <option value="metal_shield">Blindaje metálico</option>
+            </select>
+
+            <label for="thickness">Grosor <output id="thicknessOutput">0.25 m</output></label>
+            <input id="thickness" type="range" min="0.05" max="1.5" step="0.05" value="0.25" />
+            <p class="scale-note">Escala del plano: cada cuadro grande representa 2 metros.</p>
+          </section>
+
+          <section id="selectionPanel" class="selection-panel hidden">
+            <h2>Elemento seleccionado</h2>
+            <p id="selectedType" class="selected-type">—</p>
+            <label for="selectedMaterial">Material</label>
+            <select id="selectedMaterial">
+              <option value="reinforced_concrete">Concreto reforzado</option>
+              <option value="brick">Ladrillo</option>
+              <option value="metal_shield">Blindaje metálico</option>
+              <option value="metal_door">Puerta metálica</option>
+              <option value="steel_mesh">Malla de acero</option>
+            </select>
+            <label for="selectedThickness">Grosor</label>
+            <input id="selectedThickness" type="number" min="0.01" max="1.5" step="0.01" />
+            <button id="deleteSelectedButton" class="secondary-action danger-text">Eliminar elemento</button>
+          </section>
+
+          <div class="notice">
+            <strong>Modelo conceptual</strong>
+            Los coeficientes son didácticos y deben validarse con fuentes o mediciones para uso real.
+          </div>
+        </aside>
+
+        <section class="drawing-area">
+          <div class="toolbar" role="toolbar" aria-label="Herramientas del plano">
+            <button class="tool active" data-tool="select">Seleccionar</button>
+            <button class="tool" data-tool="wall">Muro</button>
+            <button class="tool" data-tool="door">Puerta</button>
+            <button class="tool" data-tool="gate">Reja</button>
+            <button class="tool" data-tool="floor">Piso / zona</button>
+            <button class="tool" data-tool="antenna">Antena</button>
+            <span class="toolbar-spacer"></span>
+            <button id="undoButton" class="quiet">Deshacer</button>
+            <button id="exampleButton" class="quiet">Escenario base</button>
+            <button id="saveButton" class="quiet">Guardar</button>
+            <button id="loadButton" class="quiet">Cargar</button>
+            <button id="clearButton" class="quiet danger">Limpiar</button>
+          </div>
+
+          <div class="canvas-frame">
+            <canvas id="planCanvas" width="900" height="560" aria-label="Editor del plano penitenciario"></canvas>
+            <div class="canvas-tip" id="canvasTip">Selecciona una herramienta y arrastra sobre la cuadrícula.</div>
+          </div>
+
+          <div class="legend" aria-label="Escala de potencia recibida">
+            <span>Potencia recibida</span>
+            <div class="legend-gradient"></div>
+            <span>Fuerte</span>
+            <span>−95 dBm</span>
+            <span>Bloqueada</span>
+          </div>
+
+          <section class="power-guide" aria-labelledby="powerGuideTitle">
+            <div class="power-guide-heading">
+              <div>
+                <p class="eyebrow">Ayuda para interpretar el mapa</p>
+                <h2 id="powerGuideTitle">¿Qué significa cada color?</h2>
+              </div>
+              <p>Los rangos se actualizan cuando cambias el umbral de comunicación.</p>
+            </div>
+
+            <div class="power-guide-grid">
+              <article class="power-level power-level-strong">
+                <span class="color-swatch" aria-hidden="true"></span>
+                <div>
+                  <strong>Rojo · Señal fuerte</strong>
+                  <span id="colorRedRange">Mayor o igual a −85 dBm</span>
+                  <p>El punto conserva señal con margen sobre el umbral.</p>
+                </div>
+              </article>
+
+              <article class="power-level power-level-weak">
+                <span class="color-swatch" aria-hidden="true"></span>
+                <div>
+                  <strong>Amarillo · Señal débil</strong>
+                  <span id="colorYellowRange">Entre −95 y −85 dBm</span>
+                  <p>Todavía supera el umbral, pero está cerca de perder comunicación.</p>
+                </div>
+              </article>
+
+              <article class="power-level power-level-blocked">
+                <span class="color-swatch" aria-hidden="true"></span>
+                <div>
+                  <strong>Azul · Bajo el umbral</strong>
+                  <span id="colorBlueRange">Entre −110 y −95 dBm</span>
+                  <p>La potencia ya no alcanza el nivel de comunicación definido.</p>
+                </div>
+              </article>
+
+              <article class="power-level power-level-deep">
+                <span class="color-swatch" aria-hidden="true"></span>
+                <div>
+                  <strong>Gris oscuro · Confinamiento profundo</strong>
+                  <span id="colorDarkRange">Menor que −110 dBm</span>
+                  <p>La señal atravesó pérdidas muy altas o varios obstáculos.</p>
+                </div>
+              </article>
+            </div>
+          </section>
+        </section>
+
+        <aside class="panel results-panel">
+          <section>
+            <h2>Resultado</h2>
+            <div id="resultState" class="empty-state">
+              Ejecuta la simulación para ver el balance de potencia.
+            </div>
+
+            <div id="resultCards" class="result-cards hidden">
+              <article>
+                <span>Área bajo el umbral</span>
+                <strong id="blockedResult">—</strong>
+              </article>
+              <article>
+                <span>Potencia promedio</span>
+                <strong id="averageResult">—</strong>
+              </article>
+              <article>
+                <span>Longitud de onda</span>
+                <strong id="wavelengthResult">—</strong>
+              </article>
+              <article>
+                <span>Potencia mínima</span>
+                <strong id="minimumResult">—</strong>
+              </article>
+            </div>
+          </section>
+
+          <section class="explanation">
+            <h2>Lectura rápida</h2>
+            <p id="explanationText">
+              El mapa mostrará qué zonas conservan señal y cuáles quedan por debajo del umbral.
+            </p>
+          </section>
+
+          <section id="calculationPanel" class="calculation-panel hidden">
+            <h2>Balance calculado</h2>
+            <div class="formula" id="formulaText">—</div>
+            <dl class="calculation-list">
+              <div><dt>Distancia promedio</dt><dd id="calculationDistance">—</dd></div>
+              <div><dt>FSPL promedio</dt><dd id="calculationFspl">—</dd></div>
+              <div><dt>Pérdida por obstáculos</dt><dd id="calculationObstacles">—</dd></div>
+            </dl>
+          </section>
+
+          <button id="simulateButton" class="primary-action">Simular cobertura</button>
+          <button id="compareButton" class="secondary-action">Comparar 850 MHz vs 28 GHz</button>
+
+          <section id="comparisonPanel" class="comparison-panel hidden">
+            <h2>Comparación directa</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Banda</th><th>Área bajo umbral</th><th>Promedio</th></tr></thead>
+                <tbody id="comparisonBody"></tbody>
+              </table>
+            </div>
+            <p id="comparisonConclusion" class="comparison-conclusion"></p>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

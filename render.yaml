@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: rf-shield-planner-api-dennis
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+
+  - type: web
+    name: rf-shield-planner-dennis
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    autoDeployTrigger: commit
+    envVars:
+      - key: VITE_API_URL
+        value: https://rf-shield-planner-api-dennis.onrender.com
