@@ -1,4 +1,4 @@
-# RF Shield Planner
+# Simulador Telecomunicaciones 
 
 Simulador didáctico de atenuación pasiva para analizar cómo los materiales de una infraestructura afectan una señal celular.
 
