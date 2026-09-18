@@ -2,6 +2,12 @@
 
 Simulador didáctico de atenuación pasiva para analizar cómo los materiales de una infraestructura afectan una señal celular.
 
+## Enlaces públicos
+
+- Aplicación: https://rf-shield-planner-dennis.onrender.com/
+- API: https://rf-shield-planner-api-dennis.onrender.com/api/health
+- Repositorio: https://github.com/dennismorales12/rf-shield-planner
+
 El proyecto está separado en dos aplicaciones:
 
 - `frontend`: interfaz y editor 2D en HTML, CSS y JavaScript.
